@@ -1,0 +1,13 @@
+{
+  "name": "strokescript",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm -w @strokescript/editor run dev",
+    "build": "npm -w @strokescript/parser run build && npm -w @strokescript/editor run build",
+    "test": "npm -ws run test --if-present",
+    "lint": "npm -ws run lint --if-present"
+  }
+}

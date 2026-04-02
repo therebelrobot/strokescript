@@ -1,0 +1,649 @@
+/* ── Reset & Base ───────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── App Layout ────────────────────────────────────────────────────── */
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  width: 100vw;
+}
+
+.app__body {
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app__center {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #0f1a33;
+  border-bottom: 1px solid #2a3a5c;
+}
+
+.app__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3B82F6;
+  letter-spacing: 0.5px;
+}
+
+.app__main {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Editor Container ──────────────────────────────────────────────── */
+
+.editor-container {
+  height: 100%;
+  overflow: auto;
+  background: #16213e;
+}
+
+.editor-container .cm-editor {
+  height: 100%;
+}
+
+/* ── Detail Panel ──────────────────────────────────────────────────── */
+
+.detail-panel {
+  background: #0d2847;
+  border-top: 1px solid #2a3a5c;
+  padding: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detail-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.detail-panel__header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #93c5fd;
+}
+
+.detail-panel__close {
+  background: none;
+  border: 1px solid #6b7280;
+  color: #e0e0e0;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.detail-panel__close:hover {
+  background: #374151;
+}
+
+.detail-panel__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-panel__visuals {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.detail-panel__waveform,
+.detail-panel__cam {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-panel__waveform h4,
+.detail-panel__cam h4,
+.detail-panel__segments h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9CA3AF;
+  font-weight: 500;
+}
+
+.detail-panel__waveform canvas,
+.detail-panel__cam canvas {
+  border-radius: 6px;
+  background: #0a1628;
+}
+
+/* ── Segment Table ─────────────────────────────────────────────────── */
+
+.segment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.segment-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid #2a3a5c;
+  color: #9CA3AF;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.segment-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #1e2d4a;
+  color: #d1d5db;
+}
+
+.segment-table tr:hover td {
+  background: #1e3a5f20;
+}
+
+/* ── Detail Actions ────────────────────────────────────────────────── */
+
+.detail-panel__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-panel__actions button {
+  padding: 6px 14px;
+  background: #1e3a6e;
+  color: #93c5fd;
+  border: 1px solid #3B82F640;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.detail-panel__actions button:hover {
+  background: #2563eb;
+  border-color: #3B82F6;
+  color: #fff;
+}
+
+/* ── Diagnostics Panel ─────────────────────────────────────────────── */
+
+.diagnostics-panel {
+  background: #1a1020;
+  border-top: 1px solid #2a3a5c;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.diagnostics-panel--collapsed {
+  max-height: none;
+}
+
+.diagnostics-panel__header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 4px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9CA3AF;
+  background: #150d1e;
+  border: none;
+  border-bottom: 1px solid #2a2040;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.diagnostics-panel__header:hover {
+  background: #1e1230;
+  color: #e0e0e0;
+}
+
+.diagnostics-panel__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.diagnostics-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.diagnostics-panel__item--error {
+  color: #fca5a5;
+}
+
+.diagnostics-panel__item--warning {
+  color: #fde68a;
+}
+
+.diagnostics-panel__icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.diagnostics-panel__pos {
+  color: #6b7280;
+  min-width: 50px;
+}
+
+.diagnostics-panel__message {
+  flex: 1;
+}
+
+/* ── Transport Bar ─────────────────────────────────────────────────── */
+
+.transport-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #0f1a33;
+  border-top: 1px solid #2a3a5c;
+}
+
+.transport-bar__btn {
+  padding: 6px 16px;
+  background: #3B82F6;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 80px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.transport-bar__btn:hover {
+  background: #2563eb;
+}
+
+.transport-bar__scrub {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.transport-bar__scrub-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #16213e;
+  outline: none;
+  cursor: pointer;
+}
+
+.transport-bar__scrub-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3B82F6;
+  cursor: grab;
+  border: 2px solid #1e3a6e;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+}
+
+.transport-bar__scrub-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3B82F6;
+  cursor: grab;
+  border: 2px solid #1e3a6e;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+}
+
+.transport-bar__scrub-input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  background: #60a5fa;
+}
+
+.transport-bar__scrub-input:active::-moz-range-thumb {
+  cursor: grabbing;
+  background: #60a5fa;
+}
+
+.transport-bar__rpm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+.transport-bar__input {
+  width: 60px;
+  padding: 4px 6px;
+  background: #16213e;
+  border: 1px solid #2a3a5c;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 13px;
+  text-align: center;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.transport-bar__input:focus {
+  outline: none;
+  border-color: #3B82F6;
+}
+
+.transport-bar__angle {
+  font-size: 13px;
+  color: #9CA3AF;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+
+.sidebar {
+  position: relative;
+  width: 280px;
+  min-width: 280px;
+  background: #111827;
+  border-left: 1px solid #2a3a5c;
+  display: flex;
+  flex-direction: row;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar--collapsed {
+  width: 32px;
+  min-width: 32px;
+}
+
+.sidebar__toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 40px;
+  background: #1e293b;
+  border: none;
+  border-bottom: 1px solid #2a3a5c;
+  color: #9CA3AF;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.sidebar__toggle:hover {
+  background: #334155;
+  color: #e0e0e0;
+}
+
+.sidebar__content {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 280px;
+  overflow-y: auto;
+  padding-top: 40px; /* space for toggle button */
+}
+
+.sidebar--collapsed .sidebar__content {
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0s 0.25s, opacity 0.15s;
+}
+
+.sidebar:not(.sidebar--collapsed) .sidebar__content {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.2s 0.1s;
+}
+
+/* ── Sidebar Sections ──────────────────────────────────────────────── */
+
+.sidebar__section {
+  padding: 12px 14px;
+  border-bottom: 1px solid #1e2d4a;
+}
+
+.sidebar__section--templates {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sidebar__section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #93c5fd;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* ── Settings Fields ───────────────────────────────────────────────── */
+
+.sidebar__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.sidebar__field-label {
+  font-size: 12px;
+  color: #9CA3AF;
+  white-space: nowrap;
+}
+
+.sidebar__field-input {
+  width: 80px;
+  padding: 4px 6px;
+  background: #16213e;
+  border: 1px solid #2a3a5c;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 13px;
+  text-align: center;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.sidebar__field-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+}
+
+/* ── Template List ─────────────────────────────────────────────────── */
+
+.sidebar__template-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.sidebar__template-group {
+  margin-bottom: 8px;
+}
+
+.sidebar__group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #6b7280;
+  font-weight: 600;
+  padding: 6px 0 4px;
+}
+
+.sidebar__template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  background: #1a2744;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 4px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.sidebar__template-card:hover {
+  background: #1e3a5f;
+  border-color: #3B82F640;
+}
+
+.sidebar__template-card:active {
+  transform: scale(0.98);
+}
+
+.sidebar__template-card--active {
+  background: #2563eb30;
+  border-color: #3B82F6;
+}
+
+.sidebar__template-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e0;
+  line-height: 1.3;
+}
+
+.sidebar__template-desc {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__template-notation {
+  font-size: 11px;
+  color: #60a5fa;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: #0f172a;
+  padding: 3px 6px;
+  border-radius: 3px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ── Bulk Export Section ───────────────────────────────────────────── */
+
+.sidebar__export-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.sidebar__export-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar__export-btn {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar__export-btn:hover:not(:disabled) {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.sidebar__export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidebar__export-btn--primary {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.sidebar__export-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover, #4a9eff);
+  border-color: var(--accent-hover, #4a9eff);
+}
