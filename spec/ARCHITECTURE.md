@@ -250,12 +250,15 @@ The parse cycle is: CM6 dispatches text change → ViewPlugin calls parser → c
 
 **SVG export** (`svg.ts`) — Generates a standalone SVG document from sample points:
 - Cam outline path at 1:1 mm scale
-- Centre hole circle (configurable diameter, default 6mm)
+- Centre hole shape matching the `shaft` type from the Score IR:
+  - `circle` — SVG `<circle>` at `shaftDiameter`
+  - polygon shapes (`tri`, `square`, `pent`, `hex`, `hept`, `oct`) — SVG `<polygon>` inscribed in circumscribed circle of `shaftDiameter`
+  - `cross` — SVG `<path>` describing the union of two rectangles; arm span = `shaftDiameter`, arm width = `crossLegWidth` (default 2mm); all corners square-cut
 - Rotation direction arrow (if specified)
 - Stroke Signature label as `<text>` element
 - Dimensions derived from `baseMm` + `maxMm`
 
-**DXF export** (`dxf.ts`) — Same geometry as SVG, written as DXF entities using a minimal hand-written DXF serializer (HEADER + ENTITIES sections only, no external dependency). Entities: LWPOLYLINE for cam outline, CIRCLE for centre hole, TEXT for label.
+**DXF export** (`dxf.ts`) — Same geometry as SVG, written as DXF entities using a minimal hand-written DXF serializer (HEADER + ENTITIES sections only, no external dependency). Entities: LWPOLYLINE for cam outline and centre hole shape (CIRCLE entity for `circle` shaft; LWPOLYLINE for polygon and `cross` shaft shapes), TEXT for label. For `cross` shafts the LWPOLYLINE traces the square-cut cross profile using `crossLegWidth` and `shaftDiameter`.
 
 **Notation copy** (`notation.ts`) — Converts a `Voice` back to compact label form (`S3.D.S0.D`) per spec §5.
 

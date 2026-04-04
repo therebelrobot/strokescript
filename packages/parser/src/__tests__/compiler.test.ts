@@ -127,4 +127,100 @@ describe('compiler', () => {
     expect(shaftErrors).toHaveLength(1);
     expect(shaftErrors[0].severity).toBe('error');
   });
+
+  describe('shaft-origin compilation', () => {
+    it('extracts shaft-origin numeric clock position from metadata', () => {
+      const input = `shaft: hex\nshaft-origin: 12\n---\n[S3 D S0 D]`;
+      const { score, diagnostics } = compileInput(input);
+      expect(score.shaftOrigin).toBe('12');
+      expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+    });
+
+    it('extracts shaft-origin decimal clock position from metadata', () => {
+      const input = `shaft: oct\nshaft-origin: 1.5\n---\n[S3 D S0 D]`;
+      const { score, diagnostics } = compileInput(input);
+      expect(score.shaftOrigin).toBe('1.5');
+      expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+    });
+
+    it('extracts shaft-origin hyphenated value for square', () => {
+      const input = `shaft: square\nshaft-origin: top-right\n---\n[S3 D S0 D]`;
+      const { score, diagnostics } = compileInput(input);
+      expect(score.shaftOrigin).toBe('top-right');
+      expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+    });
+
+    it('defaults shaft-origin to top-right for square when not specified', () => {
+      const input = `shaft: square\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('top-right');
+    });
+
+    it('defaults shaft-origin to 12 for hex when not specified', () => {
+      const input = `shaft: hex\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('12');
+    });
+
+    it('defaults shaft-origin to 12 for tri when not specified', () => {
+      const input = `shaft: tri\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('12');
+    });
+
+    it('defaults shaft-origin to 12 for oct when not specified', () => {
+      const input = `shaft: oct\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('12');
+    });
+
+    it('defaults shaft-origin to empty string for circle when not specified', () => {
+      const { score } = compileInput('[S3 D S0 D]');
+      expect(score.shaftOrigin).toBe('');
+    });
+
+    it('stores user-specified shaft-origin for circle (validation warns separately)', () => {
+      const input = `shaft: circle\nshaft-origin: 12\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('12');
+    });
+  });
+
+  describe('cross shaft shape', () => {
+    it('compiles shaft: cross and sets crossLegWidth to default 2', () => {
+      const input = `shaft: cross\nshaft-diameter: 8\n---\n[S3 D S0 D]`;
+      const { score, diagnostics } = compileInput(input);
+      expect(score.shaft).toBe('cross');
+      expect(score.crossLegWidth).toBe(2);
+      expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+    });
+
+    it('compiles cross-leg-width header key', () => {
+      const input = `shaft: cross\nshaft-diameter: 10\ncross-leg-width: 3\n---\n[S3 D S0 D]`;
+      const { score, diagnostics } = compileInput(input);
+      expect(score.shaft).toBe('cross');
+      expect(score.crossLegWidth).toBe(3);
+      expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+    });
+
+    it('defaults shaft-origin to empty string for cross when not specified', () => {
+      const input = `shaft: cross\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.shaftOrigin).toBe('');
+    });
+
+    it('crossLegWidth is undefined when shaft is not cross and cross-leg-width is not set', () => {
+      const input = `shaft: hex\nshaft-diameter: 8\n---\n[S3 D S0 D]`;
+      const { score } = compileInput(input);
+      expect(score.crossLegWidth).toBeUndefined();
+    });
+
+    it('produces diagnostic for non-numeric cross-leg-width', () => {
+      const input = `shaft: cross\ncross-leg-width: notanumber\n---\n[S3 D S0 D]`;
+      const { diagnostics } = compileInput(input);
+      const errors = diagnostics.filter((d) => d.message.includes('cross-leg-width'));
+      expect(errors).toHaveLength(1);
+      expect(errors[0].severity).toBe('error');
+    });
+  });
 });

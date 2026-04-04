@@ -1,7 +1,7 @@
-import { Score, Voice, Segment, Diagnostic, Position, ShaftShape } from './types.js';
+import { Score, Voice, Segment, Diagnostic, Position, ShaftShape, SHAFT_ORIGIN_VALUES } from './types.js';
 
 const VALID_SHAFT_SHAPES: readonly ShaftShape[] = [
-  'circle', 'tri', 'square', 'pent', 'hex', 'hept', 'oct',
+  'circle', 'tri', 'square', 'pent', 'hex', 'hept', 'oct', 'cross',
 ];
 
 const dummyPos: Position = { offset: 0, line: 1, column: 1 };
@@ -58,6 +58,19 @@ export function validate(score: Score): Diagnostic[] {
     });
   }
 
+  // Validate scale
+  const rawScale = score.metadata['scale'];
+  if (rawScale !== undefined) {
+    const scaleStr = String(rawScale);
+    if (scaleStr !== 'shared' && scaleStr !== 'independent') {
+      diagnostics.push({
+        message: `Invalid scale '${scaleStr}'. Must be 'shared' or 'independent'.`,
+        severity: 'error',
+        pos: dummyPos,
+      });
+    }
+  }
+
   // Check shaft-diameter < 2 × base (if base is specified in metadata)
   const baseVal = score.metadata['base'];
   if (baseVal !== undefined) {
@@ -65,6 +78,46 @@ export function validate(score: Score): Diagnostic[] {
     if (!isNaN(base) && base > 0 && score.shaftDiameter >= 2 * base) {
       diagnostics.push({
         message: `shaft-diameter (${score.shaftDiameter}) must be less than 2 × base (${2 * base})`,
+        severity: 'error',
+        pos: dummyPos,
+      });
+    }
+  }
+
+  // Validate shaft-origin
+  const rawOrigin = score.metadata['shaft-origin'];
+  if (rawOrigin !== undefined) {
+    if (score.shaft === 'circle' || score.shaft === 'cross') {
+      diagnostics.push({
+        message: `shaft-origin has no effect when shaft is '${score.shaft}'`,
+        severity: 'warning',
+        pos: dummyPos,
+      });
+    } else {
+      const validValues = SHAFT_ORIGIN_VALUES[score.shaft];
+      const originVal = score.shaftOrigin ?? String(rawOrigin);
+      if (validValues && !validValues.includes(originVal)) {
+        diagnostics.push({
+          message: `shaft-origin '${originVal}' is not valid for shaft shape '${score.shaft}'`,
+          severity: 'error',
+          pos: dummyPos,
+        });
+      }
+    }
+  }
+
+  // Validate cross-leg-width when shaft is cross
+  if (score.shaft === 'cross') {
+    const clw = score.crossLegWidth ?? 2;
+    if (clw <= 0) {
+      diagnostics.push({
+        message: `cross-leg-width must be > 0, got ${clw}`,
+        severity: 'error',
+        pos: dummyPos,
+      });
+    } else if (clw >= score.shaftDiameter) {
+      diagnostics.push({
+        message: `cross-leg-width (${clw}) must be less than shaft-diameter (${score.shaftDiameter})`,
         severity: 'error',
         pos: dummyPos,
       });
@@ -147,9 +200,11 @@ function validateVoice(voice: Voice, diagnostics: Diagnostic[]): void {
     }
 
     if (Math.abs(endOfCurrent - startOfNext) > 1e-9) {
+      // Drops (high→low) are valid for Q-type quick-strike patterns; rises are not.
+      const severity = startOfNext > endOfCurrent ? 'error' : 'warning';
       diagnostics.push({
         message: `Voice '${voice.name}': discontinuity at segment boundary ${i}→${i + 1}: end=${endOfCurrent}, start=${startOfNext}`,
-        severity: 'error',
+        severity,
         pos: dummyPos,
       });
     }
@@ -165,9 +220,11 @@ function validateVoice(voice: Voice, diagnostics: Diagnostic[]): void {
       const seamStart = endpoints[0].start;
 
       if (Math.abs(seamEnd - seamStart) > 1e-9) {
+        // Drops at the seam (high→low wrap-around) are valid quick-strike patterns; rises are not.
+        const severity = seamStart > seamEnd ? 'error' : 'warning';
         diagnostics.push({
           message: `Voice '${voice.name}': seam discontinuity: end=${seamEnd}, start=${seamStart}. The amplitude at 360° must equal the amplitude at 0°.`,
-          severity: 'error',
+          severity,
           pos: dummyPos,
         });
       }

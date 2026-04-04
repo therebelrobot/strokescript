@@ -9,6 +9,8 @@ import type { ShaftShape } from '@strokescript/parser';
 import type { WaveformData } from './waveform.js';
 import type { CamShapeData } from './camShape.js';
 import { generateShaftHolePoints } from './shaftHole.js';
+import { generateProtractorMarks } from './protractorMarks.js';
+import { useEditorStore } from '../store.js';
 
 // ── Waveform Sparkgraph ────────────────────────────────────────────────
 
@@ -277,6 +279,9 @@ export function drawWaveformSparkgraph(
  * @param nowAngle   Playback position in degrees (undefined = static)
  * @param shaftShape Shaft hole shape (default 'circle')
  * @param shaftDiameter Shaft hole diameter in mm (default 6)
+ * @param crossLegWidth Width of each cross arm in mm (default 2); only used when shaftShape is 'cross'
+ * @param protractorMarks Whether to draw protractor reference tick marks and labels (default false)
+ * @param notation   Optional notation text to render below the cam circle
  */
 export function drawCamSparkgraph(
   ctx: CanvasRenderingContext2D,
@@ -285,6 +290,10 @@ export function drawCamSparkgraph(
   nowAngle?: number,
   shaftShape: ShaftShape = 'circle',
   shaftDiameter: number = 6,
+  crossLegWidth: number = 2,
+  protractorMarks: boolean = false,
+  protractorDensity: 'quarters' | 'eighths' | 'tenths' | 'hundredths' = 'hundredths',
+  notation?: string,
 ): void {
   const { points, baseCircleRadius, maxRadius } = camShapeData;
   if (points.length === 0) return;
@@ -339,7 +348,7 @@ export function drawCamSparkgraph(
   ctx.stroke();
 
   // Draw shaft hole — rotates with cam
-  const shaftHolePoints = generateShaftHolePoints(shaftShape, shaftDiameter * scale);
+  const shaftHolePoints = generateShaftHolePoints(shaftShape, shaftDiameter * scale, 64, crossLegWidth * scale);
   ctx.beginPath();
   for (let i = 0; i < shaftHolePoints.length; i++) {
     const px = shaftHolePoints[i].x;
@@ -394,5 +403,60 @@ export function drawCamSparkgraph(
     ctx.strokeStyle = '#EF444440';
     ctx.lineWidth = 0.5;
     ctx.stroke();
+  }
+
+  // Draw protractor reference marks (FIXED, drawn in screen space after restore)
+  if (protractorMarks) {
+    const kerfOffset = useEditorStore.getState().kerfOffset;
+    const shaftRadius = shaftDiameter / 2;
+    const marks = generateProtractorMarks(baseCircleRadius, shaftRadius, protractorDensity, kerfOffset);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Tick lines
+    for (const tick of [...marks.longTicks, ...marks.shortTicks]) {
+      const rad = (tick.angleDeg * Math.PI) / 180;
+      const cosA = Math.cos(rad);
+      const sinA = Math.sin(rad);
+      const x1 = tick.innerR * scale * cosA;
+      const y1 = -(tick.innerR * scale * sinA); // flip y for screen coords
+      const x2 = tick.outerR * scale * cosA;
+      const y2 = -(tick.outerR * scale * sinA);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = '#777777';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Text labels
+    ctx.font = '8px monospace';
+    ctx.fillStyle = '#555555';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const lbl of marks.labels) {
+      const rad = (lbl.angleDeg * Math.PI) / 180;
+      const lx = lbl.r * scale * Math.cos(rad);
+      const ly = -(lbl.r * scale * Math.sin(rad)); // flip y
+      ctx.fillText(lbl.text, lx, ly);
+    }
+
+    ctx.restore();
+  }
+
+  // Draw notation text below the cam circle
+  if (notation) {
+    const basePixelRadius = baseCircleRadius * scale;
+    const lines = notation.split('\n');
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#333333';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const startY = Math.min(size - 14 * lines.length, cy + basePixelRadius + 12);
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], cx, startY + i * 12);
+    }
   }
 }

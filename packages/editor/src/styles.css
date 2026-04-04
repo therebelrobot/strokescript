@@ -521,6 +521,20 @@ body {
   border-color: #3B82F6;
 }
 
+.sidebar__field--checkbox {
+  justify-content: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.sidebar__field-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #3B82F6;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ── Template List ─────────────────────────────────────────────────── */
 
 .sidebar__template-list {

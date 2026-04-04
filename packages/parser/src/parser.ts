@@ -168,6 +168,8 @@ export class Parser {
             valueStr += (valueStr ? ' ' : '') + t.value;
           }
           valueStr = valueStr.trim();
+          // Normalise hyphenated value fragments (e.g. "top - right" → "top-right")
+          valueStr = valueStr.replace(/ - /g, '-');
           // Try to parse as number
           const numVal = Number(valueStr);
           if (valueStr !== '' && !isNaN(numVal) && isFinite(numVal)) {
@@ -276,8 +278,11 @@ export class Parser {
       if (this.isAtEnd()) break;
 
       // Check if this is a named voice: IDENTIFIER COLON ...
+      // Voice names must begin with a lowercase-starting IDENTIFIER token.
+      // PRIMITIVE tokens (S, D, L, E, Q, H) are reserved for curve syntax
+      // and must never be used as voice names.
       if (
-        (this.check(TokenType.IDENTIFIER) || this.check(TokenType.PRIMITIVE)) &&
+        this.check(TokenType.IDENTIFIER) &&
         this.peekAhead(1).type === TokenType.COLON
       ) {
         const voice = this.parseNamedVoice();
@@ -298,19 +303,20 @@ export class Parser {
 
   private parseNamedVoice(): VoiceNode | null {
     const pos = this.peek().pos;
-    const nameTok = this.advance(); // identifier
+    const nameTok = this.advance(); // identifier (lowercase-starting)
+    const voiceName = nameTok.value;
     this.advance(); // colon
 
     // Check for reference: A@0.5
     if (
-      (this.check(TokenType.IDENTIFIER) || this.check(TokenType.PRIMITIVE)) &&
+      this.check(TokenType.IDENTIFIER) &&
       this.peekAhead(1).type === TokenType.AT
     ) {
       const ref = this.parseReference();
       const direction = this.parseDirection();
       this.skipNewlines();
       if (ref) {
-        return { kind: 'voice', name: nameTok.value, body: ref, direction, pos };
+        return { kind: 'voice', name: voiceName, body: ref, direction, pos };
       }
       return null;
     }
@@ -321,7 +327,7 @@ export class Parser {
     this.skipNewlines();
 
     if (body) {
-      return { kind: 'voice', name: nameTok.value, body, direction, pos };
+      return { kind: 'voice', name: voiceName, body, direction, pos };
     }
     return null;
   }
@@ -341,6 +347,7 @@ export class Parser {
   private parseReference(): ReferenceNode | null {
     const pos = this.peek().pos;
     const targetTok = this.advance(); // identifier
+    const targetName = targetTok.value;
     this.advance(); // @
     const numTok = this.match(TokenType.NUMBER);
     if (!numTok) {
@@ -349,7 +356,7 @@ export class Parser {
     }
     return {
       kind: 'reference',
-      targetVoice: targetTok.value,
+      targetVoice: targetName,
       phaseOffset: Number(numTok.value),
       pos,
     };

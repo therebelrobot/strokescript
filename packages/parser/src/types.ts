@@ -100,7 +100,20 @@ export interface ScoreNode {
 
 // ── IR (Compiled, flat) ─────────────────────────────────────────────
 
-export type ShaftShape = 'circle' | 'tri' | 'square' | 'pent' | 'hex' | 'hept' | 'oct';
+export type ShaftShape = 'circle' | 'tri' | 'square' | 'pent' | 'hex' | 'hept' | 'oct' | 'cross';
+
+// ── Shaft Origin Values ─────────────────────────────────────────────
+
+export const SHAFT_ORIGIN_VALUES: Readonly<Record<ShaftShape, readonly string[]>> = {
+  circle: [],
+  square: ['top-right', 'top-left', 'bottom-right', 'bottom-left'],
+  tri: ['12', '4', '8'],
+  pent: ['12', '2.4', '4.8', '7.2', '9.6'],
+  hex: ['12', '2', '4', '6', '8', '10'],
+  hept: ['12', '1.7', '3.4', '5.1', '6.9', '8.6', '10.3'],
+  oct: ['12', '1.5', '3', '4.5', '6', '7.5', '9', '10.5'],
+  cross: [],
+} as const;
 
 export interface Segment {
   curveType: string;
@@ -123,6 +136,10 @@ export interface Score {
   voices: Voice[];
   shaft: ShaftShape;
   shaftDiameter: number;
+  shaftOrigin?: string;
+  /** Width of each arm of the cross, in mm. Only meaningful when shaft === 'cross'. Defaults to 2. */
+  crossLegWidth?: number;
+  scale?: 'shared' | 'independent';
 }
 
 // ── Result ──────────────────────────────────────────────────────────

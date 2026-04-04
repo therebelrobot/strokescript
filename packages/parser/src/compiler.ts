@@ -11,10 +11,11 @@ import {
   Voice,
   Segment,
   ShaftShape,
+  SHAFT_ORIGIN_VALUES,
 } from './types.js';
 
 const VALID_SHAFT_SHAPES: readonly ShaftShape[] = [
-  'circle', 'tri', 'square', 'pent', 'hex', 'hept', 'oct',
+  'circle', 'tri', 'square', 'pent', 'hex', 'hept', 'oct', 'cross',
 ];
 
 interface FlatSegment {
@@ -66,6 +67,47 @@ export function compile(ast: ScoreNode): { score: Score; diagnostics: Diagnostic
       });
     } else {
       shaftDiameter = dVal;
+    }
+  }
+
+  let shaftOrigin = '';
+  if (metadata['shaft-origin'] !== undefined) {
+    shaftOrigin = String(metadata['shaft-origin']);
+  } else if (shaft === 'square') {
+    shaftOrigin = 'top-right';
+  } else if (shaft !== 'circle' && shaft !== 'cross') {
+    shaftOrigin = '12';
+  }
+  // For circle and cross with no shaft-origin specified: shaftOrigin stays ''
+
+  let crossLegWidth: number | undefined;
+  if (metadata['cross-leg-width'] !== undefined) {
+    const clwVal = Number(metadata['cross-leg-width']);
+    if (isNaN(clwVal)) {
+      diagnostics.push({
+        message: `Invalid cross-leg-width '${metadata['cross-leg-width']}'. Must be a number.`,
+        severity: 'error',
+        pos: ast.header?.pos ?? { offset: 0, line: 1, column: 1 },
+      });
+    } else {
+      crossLegWidth = clwVal;
+    }
+  }
+  if (shaft === 'cross' && crossLegWidth === undefined) {
+    crossLegWidth = 2;
+  }
+
+  let scale: 'shared' | 'independent' | undefined;
+  if (metadata['scale'] !== undefined) {
+    const scaleVal = String(metadata['scale']);
+    if (scaleVal === 'shared' || scaleVal === 'independent') {
+      scale = scaleVal;
+    } else {
+      diagnostics.push({
+        message: `Invalid scale '${scaleVal}'. Must be 'shared' or 'independent'.`,
+        severity: 'error',
+        pos: ast.header?.pos ?? { offset: 0, line: 1, column: 1 },
+      });
     }
   }
 
@@ -180,7 +222,7 @@ export function compile(ast: ScoreNode): { score: Score; diagnostics: Diagnostic
   }
 
   return {
-    score: { metadata, voices, shaft, shaftDiameter },
+    score: { metadata, voices, shaft, shaftDiameter, shaftOrigin, crossLegWidth, scale },
     diagnostics,
   };
 }

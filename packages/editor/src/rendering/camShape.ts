@@ -3,7 +3,9 @@
  * for cam profile rendering.
  */
 
+import type { ShaftShape } from '@strokescript/parser';
 import type { WaveformData } from './waveform.js';
+import { getShaftOriginPoint } from './shaftHole.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -62,4 +64,43 @@ export function generateCamShape(
     baseCircleRadius: baseRadiusMm,
     maxRadius,
   };
+}
+
+/**
+ * Draw a visual marker at the shaft-origin corner on a canvas context.
+ *
+ * Renders a small filled dot in a contrasting colour (#FF4500) at the
+ * named origin corner of the shaft hole, relative to the cam/shaft centre.
+ * No-op when shaftOrigin is not set or the shaft shape is 'circle'.
+ *
+ * @param ctx           Canvas 2D rendering context
+ * @param cx            Centre x of the cam/shaft in canvas pixels
+ * @param cy            Centre y of the cam/shaft in canvas pixels
+ * @param scale         Scale factor: canvas pixels per mm
+ * @param shaftShape    Shaft shape keyword
+ * @param shaftDiameter Shaft diameter in mm
+ * @param shaftOrigin   Origin string (e.g. 'top-right', '12')
+ */
+export function drawShaftOriginMarker(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  scale: number,
+  shaftShape: ShaftShape,
+  shaftDiameter: number,
+  shaftOrigin: string,
+): void {
+  const pt = getShaftOriginPoint(shaftShape, shaftDiameter, shaftOrigin);
+  if (pt === null) return;
+
+  const markerX = cx + pt.x * scale;
+  const markerY = cy + pt.y * scale;
+  const dotRadius = Math.max(3, shaftDiameter * scale * 0.1);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(markerX, markerY, dotRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#FF4500';
+  ctx.fill();
+  ctx.restore();
 }

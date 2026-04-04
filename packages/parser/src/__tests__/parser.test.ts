@@ -132,4 +132,97 @@ B: A@0.5`;
     expect(seg0.curveType).toBe('gentle');
     expect(seg0.amplitude).toBe(3);
   });
+
+  describe('shaft-origin header parsing', () => {
+    it('parses shaft-origin with numeric clock position', () => {
+      const input = `shaft: hex\nshaft-origin: 12\n---\n[S3 D S0 D]`;
+      const { ast } = parseInput(input);
+      expect(ast.header).not.toBeNull();
+      // 12 is a valid number, stored as number
+      expect(ast.header!.metadata['shaft-origin']).toBe(12);
+    });
+
+    it('parses shaft-origin with decimal clock position', () => {
+      const input = `shaft: oct\nshaft-origin: 1.5\n---\n[S3 D S0 D]`;
+      const { ast } = parseInput(input);
+      expect(ast.header).not.toBeNull();
+      expect(ast.header!.metadata['shaft-origin']).toBe(1.5);
+    });
+
+    it('parses shaft-origin with hyphenated value and normalises it', () => {
+      const input = `shaft: square\nshaft-origin: top-right\n---\n[S3 D S0 D]`;
+      const { ast } = parseInput(input);
+      expect(ast.header).not.toBeNull();
+      // Value should be normalised from "top - right" to "top-right"
+      expect(ast.header!.metadata['shaft-origin']).toBe('top-right');
+    });
+
+    it('parses shaft-origin alongside shaft and shaft-diameter', () => {
+      const input = `shaft: hex\nshaft-diameter: 8\nshaft-origin: 6\n---\n[S3 D S0 D]`;
+      const { ast } = parseInput(input);
+      expect(ast.header).not.toBeNull();
+      expect(ast.header!.metadata['shaft']).toBe('hex');
+      expect(ast.header!.metadata['shaft-diameter']).toBe(8);
+      expect(ast.header!.metadata['shaft-origin']).toBe(6);
+    });
+  });
+
+  describe('complex voice names', () => {
+    it('parses a multi-letter voice name "cam"', () => {
+      const { ast, diagnostics } = parseInput('cam: [S3 D S0 D]');
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(1);
+      expect(ast.voices[0].name).toBe('cam');
+    });
+
+    it('parses a voice name with trailing digit "cam1"', () => {
+      const { ast, diagnostics } = parseInput('cam1: [S3 D S0 D]');
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(1);
+      expect(ast.voices[0].name).toBe('cam1');
+    });
+
+    it('parses a voice name with underscore "voice_2"', () => {
+      const { ast, diagnostics } = parseInput('voice_2: [S3 D S0 D]');
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(1);
+      expect(ast.voices[0].name).toBe('voice_2');
+    });
+
+    it('parses a non-primitive letter + digit voice name "A1"', () => {
+      const { ast, diagnostics } = parseInput('A1: [S3 D S0 D]');
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(1);
+      expect(ast.voices[0].name).toBe('A1');
+    });
+
+    it('parses a score with multiple valid lowercase voice names', () => {
+      const input = `cam1: [S3 D S0 D]\nvoice_2: [S3 D S0 D]\na1: [D S3 D S0]`;
+      const { ast, diagnostics } = parseInput(input);
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(3);
+      expect(ast.voices[0].name).toBe('cam1');
+      expect(ast.voices[1].name).toBe('voice_2');
+      expect(ast.voices[2].name).toBe('a1');
+    });
+
+    it('produces errors for primitive-letter + digit as voice name (e.g. "S1:", "D2:")', () => {
+      // S tokenises as PRIMITIVE — S1: must NOT be treated as a named voice
+      const { ast: ast1, diagnostics: d1 } = parseInput('S1: [S3 D S0 D]');
+      expect(d1.some((d) => d.severity === 'error')).toBe(true);
+      expect(ast1.voices.every((v) => v.name !== 'S1')).toBe(true);
+
+      const { ast: ast2, diagnostics: d2 } = parseInput('D2: [S3 D S0 D]');
+      expect(d2.some((d) => d.severity === 'error')).toBe(true);
+      expect(ast2.voices.every((v) => v.name !== 'D2')).toBe(true);
+    });
+
+    it('parses a phase-offset reference targeting a valid lowercase voice "cam@0.5"', () => {
+      const input = `cam: [S3 D S0 D]\nB: cam@0.5`;
+      const { ast, diagnostics } = parseInput(input);
+      expect(diagnostics).toHaveLength(0);
+      expect(ast.voices).toHaveLength(2);
+      expect(ast.voices[1].body.kind).toBe('reference');
+    });
+  });
 });

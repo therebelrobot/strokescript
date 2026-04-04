@@ -29,6 +29,14 @@ export {
   drawCamSparkgraph,
 } from './canvasRenderer.js';
 
+// Protractor marks geometry
+export type {
+  ProtractorTick,
+  ProtractorLabel,
+  ProtractorMarksData,
+} from './protractorMarks.js';
+export { generateProtractorMarks } from './protractorMarks.js';
+
 // SVG cam export
 export type { CamSVGOptions } from './svgExport.js';
 export { generateCamSVG } from './svgExport.js';

@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
+// useState is still needed for clickedIdx and isExporting
 import { useEditorStore } from '../store';
 import { updateMetadata } from '../utils/sourceUpdater';
 import { exportAllAsZip, generateExportFilename } from '../rendering';
 import type { ShaftShape } from '@strokescript/parser';
+import { SHAFT_ORIGIN_VALUES } from '@strokescript/parser';
 
 const SHAFT_SHAPE_OPTIONS: { value: ShaftShape; label: string }[] = [
   { value: 'circle', label: 'Circle' },
@@ -12,6 +14,7 @@ const SHAFT_SHAPE_OPTIONS: { value: ShaftShape; label: string }[] = [
   { value: 'hex', label: 'Hexagon' },
   { value: 'hept', label: 'Heptagon' },
   { value: 'oct', label: 'Octagon' },
+  { value: 'cross', label: 'Cross' },
 ];
 
 // ── Template definitions extracted from spec/STROKE_SIGNATURE_SPEC.md ──
@@ -145,28 +148,63 @@ const TEMPLATES: Template[] = [
   {
     name: 'Cam Library',
     description: '18 cams for mixing & matching — shapes, phases, amplitudes, subdivisions',
-    notation: `@gentle = B(0.2, 0.0, 0.8, 1.0)
+    notation: `rpm: 30
+scale: independent
+shaft: square
+shaft-diameter: 6
+shaft-origin: top-right
+
+@gentle = B(0.2, 0.0, 0.8, 1.0)
+@snap   = B(0.9, 0.0, 1.0, 0.4)
+@bounce = B(0.4, 2.0, 0.6, -0.5)
+
 ---
-A: [S3 D3 S0 D0]
-B: [S3@2 D L0 D]
-C: [S3 [L1 D1 L0] S0]
-D: [S3 D]*4
-E: [S3 D3 @gentle:0 D0]
-F: [Q3 D3 Q0 D0]
-G: [Q3 D S0 D] CW
-H: [H3 D1 H0 D1 H3 D1 H0 D1]
-I: [D4 Q0 S0 S4]
-J: [L4 D2 L0 D2]
-K: [E3 D3 E0 D0]
-L: [S6 D6 S0 D0]
-M: L@0.5
-N: [S4 D4 S0 D0]
-O: N@0.333
-P: N@0.667
-Q: [S3 D3 S0 D0]
-R: Q@0.25
-S: Q@0.5
-T: Q@0.75`,
+
+# ── SINE (smooth rise/fall) ──────────────────────────────
+# Simple two-beat, balanced
+s_1: [S8 D S0 D]
+# Two-beat, longer dwell at top
+s_2: [S8@1 D@2 S0@1 D@2]
+# Two-beat, phase offset quarter turn
+s_3: s_1@0.25
+# Four-beat, tight pulses
+s_4: [S8 D S0 D]*2
+# Four-beat, phase offset eighth turn
+s_5: s_4@0.125
+
+# ── DWELL-HEAVY ──────────────────────────────────────────
+# Long hold at top, quick fall
+d_1: [S8@1 D@3 S0@1 D@1]
+# Long hold at bottom, quick rise
+d_2: [S8@1 D@1 S0@1 D@3]
+# Opposite phase of D1
+d_3: d_1@0.5
+# Three-beat with extended rests
+d_4: [S8 D@2 S0 D@2]*3
+
+# ── QUICK / STRIKE ───────────────────────────────────────
+# Single sharp peck
+q_1: [Q8 D0]*2
+# Double peck per revolution
+q_2: [Q8 D0]*4
+# Peck with recovery dwell
+q_3: [Q8@1 D@2 S0@1 D@2]
+# Offset half turn from Q1
+q_4: q_1@0.5
+
+# ── EASE / ORGANIC ───────────────────────────────────────
+# Gentle single wave
+e_1: [@gentle:8 D S0 D]
+# Snap attack, gentle return
+e_2: [@snap:8 D @gentle:0 D]
+# Bounce overshoot
+e_3: [@bounce:8 D S0 D]
+
+# ── STEP / RATCHET ───────────────────────────────────────
+# Two-step ratchet
+h_1: [H8 D4 H0 D0]
+# Four-step ratchet
+h_2: [H8 H4 H0 H4]*2`,
     category: 'library',
   },
   // ── Shorthand ─────────────────────────────────────────────────────
@@ -196,11 +234,23 @@ export function Sidebar() {
   const toggleSidebar = useEditorStore((s) => s.toggleSidebar);
   const rpm = useEditorStore((s) => s.rpm);
   const baseRadius = useEditorStore((s) => s.baseRadius);
+  const max = useEditorStore((s) => s.max);
+  const scale = useEditorStore((s) => s.scale);
   const source = useEditorStore((s) => s.source);
   const setSource = useEditorStore((s) => s.setSource);
   const shaftShape = useEditorStore((s) => s.shaftShape);
   const shaftDiameter = useEditorStore((s) => s.shaftDiameter);
+  const shaftOrigin = useEditorStore((s) => s.shaftOrigin);
+  const crossLegWidth = useEditorStore((s) => s.crossLegWidth);
   const parseResult = useEditorStore((s) => s.parseResult);
+  const protractorMarks = useEditorStore((s) => s.protractorMarks);
+  const setProtractorMarks = useEditorStore((s) => s.setProtractorMarks);
+  const showOriginalNotation = useEditorStore((s) => s.showOriginalNotation);
+  const setShowOriginalNotation = useEditorStore((s) => s.setShowOriginalNotation);
+  const showDotNotation = useEditorStore((s) => s.showDotNotation);
+  const setShowDotNotation = useEditorStore((s) => s.setShowDotNotation);
+  const kerfOffset = useEditorStore((s) => s.kerfOffset);
+  const setKerfOffset = useEditorStore((s) => s.setKerfOffset);
 
   const [clickedIdx, setClickedIdx] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -215,13 +265,13 @@ export function Sidebar() {
       await exportAllAsZip(
         voices,
         'svg',
-        { baseRadius, shaftShape, shaftDiameter },
+        { baseRadius, shaftShape, shaftDiameter, shaftOrigin: shaftOrigin || undefined, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation },
         generateExportFilename().replace('.zip', '-svg.zip')
       );
     } finally {
       setIsExporting(false);
     }
-  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter]);
+  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter, shaftOrigin, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation]);
 
   const handleExportDXF = useCallback(async () => {
     if (!hasVoices || isExporting) return;
@@ -230,13 +280,13 @@ export function Sidebar() {
       await exportAllAsZip(
         voices,
         'dxf',
-        { baseRadius, shaftShape, shaftDiameter },
+        { baseRadius, shaftShape, shaftDiameter, shaftOrigin: shaftOrigin || undefined, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation },
         generateExportFilename().replace('.zip', '-dxf.zip')
       );
     } finally {
       setIsExporting(false);
     }
-  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter]);
+  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter, shaftOrigin, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation]);
 
   const handleExportBoth = useCallback(async () => {
     if (!hasVoices || isExporting) return;
@@ -245,13 +295,13 @@ export function Sidebar() {
       await exportAllAsZip(
         voices,
         'both',
-        { baseRadius, shaftShape, shaftDiameter },
+        { baseRadius, shaftShape, shaftDiameter, shaftOrigin: shaftOrigin || undefined, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation },
         generateExportFilename()
       );
     } finally {
       setIsExporting(false);
     }
-  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter]);
+  }, [voices, hasVoices, isExporting, baseRadius, shaftShape, shaftDiameter, shaftOrigin, protractorMarks, crossLegWidth, showOriginalNotation, showDotNotation]);
 
 
   const handleTemplateClick = useCallback(
@@ -286,7 +336,7 @@ export function Sidebar() {
           <h3 className="sidebar__section-title">Settings</h3>
 
           <label className="sidebar__field">
-            <span className="sidebar__field-label">RPM</span>
+            <span className="sidebar__field-label">rpm</span>
             <input
               className="sidebar__field-input"
               type="number"
@@ -303,7 +353,7 @@ export function Sidebar() {
           </label>
 
           <label className="sidebar__field">
-            <span className="sidebar__field-label">Base Radius (mm)</span>
+            <span className="sidebar__field-label">base (mm)</span>
             <input
               className="sidebar__field-input"
               type="number"
@@ -320,12 +370,67 @@ export function Sidebar() {
           </label>
 
           <label className="sidebar__field">
-            <span className="sidebar__field-label">Shaft Shape</span>
+            <span className="sidebar__field-label">max (mm)</span>
+            <input
+              className="sidebar__field-input"
+              type="number"
+              min={1}
+              step={0.5}
+              value={max}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (v > 0) {
+                  setSource(updateMetadata(source, 'max', v + 'mm'));
+                }
+              }}
+            />
+          </label>
+
+          <label className="sidebar__field">
+            <span className="sidebar__field-label">scale</span>
+            <select
+              className="sidebar__field-input"
+              value={scale}
+              onChange={(e) => {
+                setSource(updateMetadata(source, 'scale', e.target.value));
+              }}
+            >
+              <option value="shared">shared</option>
+              <option value="independent">independent</option>
+            </select>
+          </label>
+
+          <label className="sidebar__field">
+            <span className="sidebar__field-label">kerf (mm)</span>
+            <input
+              className="sidebar__field-input"
+              type="number"
+              min={0}
+              step={0.05}
+              value={kerfOffset}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (v >= 0) {
+                  setKerfOffset(v);
+                }
+              }}
+            />
+          </label>
+
+          <label className="sidebar__field">
+            <span className="sidebar__field-label">shaft</span>
             <select
               className="sidebar__field-input"
               value={shaftShape}
               onChange={(e) => {
-                setSource(updateMetadata(source, 'shaft', e.target.value));
+                const newShape = e.target.value as ShaftShape;
+                const validOrigins = SHAFT_ORIGIN_VALUES[newShape];
+                let newSource = updateMetadata(source, 'shaft', newShape);
+                if (shaftOrigin && !validOrigins.includes(shaftOrigin)) {
+                  const defaultOrigin = validOrigins[0] ?? '';
+                  newSource = updateMetadata(newSource, 'shaft-origin', defaultOrigin);
+                }
+                setSource(newSource);
               }}
             >
               {SHAFT_SHAPE_OPTIONS.map((opt) => (
@@ -337,7 +442,7 @@ export function Sidebar() {
           </label>
 
           <label className="sidebar__field">
-            <span className="sidebar__field-label">Shaft Diameter (mm)</span>
+            <span className="sidebar__field-label">shaft-diameter</span>
             <input
               className="sidebar__field-input"
               type="number"
@@ -352,6 +457,46 @@ export function Sidebar() {
               }}
             />
           </label>
+
+          {SHAFT_ORIGIN_VALUES[shaftShape].length > 0 && (
+            <label className="sidebar__field">
+              <span className="sidebar__field-label">shaft-origin</span>
+              <select
+                className="sidebar__field-input"
+                value={shaftOrigin}
+                onChange={(e) => {
+                  setSource(updateMetadata(source, 'shaft-origin', e.target.value));
+                }}
+              >
+                <option value="">— default —</option>
+                {SHAFT_ORIGIN_VALUES[shaftShape].map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {shaftShape === 'cross' && (
+            <label className="sidebar__field">
+              <span className="sidebar__field-label">cross leg width (mm)</span>
+              <input
+                className="sidebar__field-input"
+                type="number"
+                min={0.1}
+                step={0.1}
+                max={shaftDiameter - 0.1}
+                value={crossLegWidth}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (v > 0 && v < shaftDiameter) {
+                    setSource(updateMetadata(source, 'cross-leg-width', v.toString()));
+                  }
+                }}
+              />
+            </label>
+          )}
         </section>
         
         {/* ── Bulk Export Section ──────────────────────────────── */}
@@ -360,6 +505,33 @@ export function Sidebar() {
           <p className="sidebar__export-desc">
             Export all {voices.length} cam{voices.length !== 1 ? 's' : ''} as a ZIP archive
           </p>
+          <label className="sidebar__field sidebar__field--checkbox">
+            <input
+              type="checkbox"
+              className="sidebar__field-checkbox"
+              checked={protractorMarks}
+              onChange={(e) => setProtractorMarks(e.target.checked)}
+            />
+            <span className="sidebar__field-label">Protractor marks</span>
+          </label>
+          <label className="sidebar__field sidebar__field--checkbox">
+            <input
+              type="checkbox"
+              className="sidebar__field-checkbox"
+              checked={showOriginalNotation}
+              onChange={(e) => setShowOriginalNotation(e.target.checked)}
+            />
+            <span className="sidebar__field-label">Include original notation</span>
+          </label>
+          <label className="sidebar__field sidebar__field--checkbox">
+            <input
+              type="checkbox"
+              className="sidebar__field-checkbox"
+              checked={showDotNotation}
+              onChange={(e) => setShowDotNotation(e.target.checked)}
+            />
+            <span className="sidebar__field-label">Include dot notation</span>
+          </label>
           <div className="sidebar__export-buttons">
             <button
               className="sidebar__export-btn"

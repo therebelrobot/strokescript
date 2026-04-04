@@ -4,6 +4,10 @@ import { StreamLanguage } from '@codemirror/language';
  * StrokeScript StreamLanguage definition for CodeMirror 6 syntax highlighting.
  */
 export const strokescriptLanguage = StreamLanguage.define({
+  name: 'strokescript',
+  languageData: {
+    commentTokens: { line: '#' },
+  },
   token(stream) {
     // Skip whitespace (but not newlines — handled by StreamLanguage)
     if (stream.eatSpace()) return null;

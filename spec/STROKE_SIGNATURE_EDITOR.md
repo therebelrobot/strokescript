@@ -34,6 +34,22 @@ The UI should feel closer to a code editor or a DAW than to a CAD tool. Fast to 
 
 Each defined voice or curve renders an **inline sparkgraph row** — a waveform thumbnail `[~~]` and a cam thumbnail `[○]` — on the same line as its notation, immediately after parsing.
 
+### 2.1 Header Controls
+
+The HEADER bar above the editor pane exposes the score metadata fields as inline controls. Each field corresponds directly to its counterpart in the score header syntax (see Spec §4.3).
+
+| Field | UI Control | Type | Notes |
+|-------|-----------|------|-------|
+| `rpm` | Number input | positive number | Drives animation speed |
+| `base` | Number input (mm) | positive number | Minimum cam radius |
+| `max` | Number input (mm) | positive number | Maximum follower travel |
+| `scale` | Dropdown / select | `enum: "shared" \| "independent"` | Controls Y-axis normalisation across voices — `shared` uses a common axis for all voices; `independent` normalises each voice to its own maximum |
+| `shaft` | Dropdown / select | keyword (e.g. `circle`, `hex`, `square`) | Shape of the shaft hole |
+| `shaft-diameter` | Number input (mm) | positive number | Circumscribed circle diameter |
+| `shaft-origin` | Dropdown / select | shape-dependent string (e.g. `12`, `top-right`) | Zero-degree reference corner |
+
+> **`scale` is an enum, not a number.** The two valid values are `"shared"` and `"independent"`. The UI control for this field must be a dropdown or select, not a numeric input.
+
 ---
 
 ## 3. Inline Sparkgraphs
@@ -59,6 +75,7 @@ Each defined voice or curve renders an **inline sparkgraph row** — a waveform 
 - Base circle shown as a faint inner ring
 - Cam outline drawn as a closed filled shape
 - Rotation direction indicated by a small arrow if `CW`/`CCW` is specified
+- **Origin indicator:** when `shaft-origin` is set (or defaulted), the corresponding corner of the shaft hole polygon is highlighted with a small filled dot or contrasting colour in the cam preview, making the reference corner visually identifiable at a glance
 
 ### 3.3 Placement
 
@@ -141,7 +158,8 @@ From the expanded view:
 
 SVG/DXF output includes:
 - Cam outline at 1:1 scale (mm)
-- Centre hole circle (diameter configurable, default 6mm for common axle sizes)
+- Centre hole (shape and diameter controlled by `shaft` and `shaft-diameter` header fields)
+- **Origin mark:** a small notch or filled dot at the `shaft-origin` corner of the shaft hole polygon, so the reference corner is identifiable on the physical part after cutting
 - Rotation direction arrow
 - Stroke Signature label engraved/etched as text on the face
 
@@ -205,6 +223,7 @@ Errors are non-blocking. A parse error on one voice should not prevent other voi
 | Undefined custom curve | `Custom curve '@name' is not defined` |
 | Amplitude out of range | `Amplitude {n}mm exceeds score max {m}mm` |
 | Malformed bezier | `B() requires exactly 4 values between 0 and 1` |
+| Invalid shaft-origin | `shaft-origin '{value}' is not valid for shaft shape '{shape}'` |
 
 ---
 
@@ -263,7 +282,7 @@ Palette should be user-configurable in settings.
 | Concern | Recommendation |
 |---------|---------------|
 | Framework | React |
-| Editor input | `CodeMirror 6` with a custom Stroke Signature language mode for syntax highlighting |
+| Editor input | `CodeMirror 6` with a custom Stroke Signature language mode for syntax highlighting; the language mode registers `lineComment: '#'` (in `codemirror/language.ts`), enabling `#`-style line comment syntax highlighting and editor comment-toggling |
 | Canvas rendering | HTML5 Canvas for sparkgraphs; SVG for the expanded cam view |
 | Animation | `requestAnimationFrame` loop driven by a shared clock |
 | Export (SVG) | Serialise the SVG cam path directly |

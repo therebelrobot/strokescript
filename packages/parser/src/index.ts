@@ -17,7 +17,7 @@ export type {
   ParseResult,
 } from './types.js';
 
-export { TokenType as TokenTypeEnum } from './types.js';
+export { TokenType as TokenTypeEnum, SHAFT_ORIGIN_VALUES } from './types.js';
 export { tokenize } from './tokenizer.js';
 export { parseTokens } from './parser.js';
 export { compile } from './compiler.js';

@@ -18,6 +18,35 @@ export interface BulkExportOptions {
   shaftShape: ShaftShape;
   /** Shaft hole diameter in mm */
   shaftDiameter: number;
+  /** Origin corner identifier — marks the zero-degree reference point */
+  shaftOrigin?: string;
+  /**
+   * Whether to include protractor reference marks in the exported cam.
+   * Passed through to both SVG and DXF exporters unchanged.
+   * Default: false.
+   */
+  protractorMarks?: boolean;
+  /**
+   * Tick density for protractor marks when protractorMarks is true.
+   * 'quarters' (4 ticks), 'eighths' (8 ticks), 'tenths' (10 ticks),
+   * 'hundredths' (100 ticks). Default: 'hundredths'.
+   */
+  protractorDensity?: 'quarters' | 'eighths' | 'tenths' | 'hundredths';
+  /**
+   * Cross leg width in mm — only used when shaftShape === 'cross'.
+   * Default: 2.
+   */
+  crossLegWidth?: number;
+  /**
+   * Whether to include the original bracket notation in the export
+   * (e.g. "VoiceName: [S8 D S0 D]"). Default: false.
+   */
+  showOriginalNotation?: boolean;
+  /**
+   * Whether to include dot notation in the export
+   * (e.g. "S8.D.S0.D"). Default: false.
+   */
+  showDotNotation?: boolean;
 }
 
 export type ExportFormat = 'svg' | 'dxf' | 'both';
@@ -45,13 +74,30 @@ export async function generateExportZip(
     }
     const camData = generateCamShape(waveformData, options.baseRadius, maxAmp || 1);
 
+    // Build notation strings for this voice
+    const segToken = (s: { curveType: string; amplitude: number }) =>
+      `${s.curveType}${s.amplitude}`;
+    const originalNotation = options.showOriginalNotation
+      ? `${voice.name}: [${voice.segments.map(segToken).join(' ')}]`
+      : undefined;
+    const dotNotation = options.showDotNotation
+      ? voice.segments.map(segToken).join('.')
+      : undefined;
+    const notationLines = [originalNotation, dotNotation].filter(Boolean) as string[];
+    const notation = notationLines.length > 0 ? notationLines.join('\n') : undefined;
+
     // Add SVG if requested
     if (format === 'svg' || format === 'both') {
-      const svg = generateCamSVG(camData, {
+      const svg = await generateCamSVG(camData, {
         label: voice.name,
         direction: voice.direction,
         centreHoleDiameter: options.shaftDiameter,
         shaftShape: options.shaftShape,
+        shaftOrigin: options.shaftOrigin || undefined,
+        protractorMarks: options.protractorMarks,
+        protractorDensity: options.protractorDensity ?? 'hundredths',
+        crossLegWidth: options.crossLegWidth ?? 2,
+        notation,
       });
       zip.file(`${voice.name}-cam.svg`, svg);
     }
@@ -61,6 +107,11 @@ export async function generateExportZip(
       const dxf = generateCamDXF(camData, {
         centreHoleDiameter: options.shaftDiameter,
         shaftShape: options.shaftShape,
+        shaftOrigin: options.shaftOrigin || undefined,
+        protractorMarks: options.protractorMarks,
+        protractorDensity: options.protractorDensity ?? 'hundredths',
+        crossLegWidth: options.crossLegWidth ?? 2,
+        notation,
       });
       zip.file(`${voice.name}-cam.dxf`, dxf);
     }

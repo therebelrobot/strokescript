@@ -155,6 +155,33 @@ Where `x1, y1, x2, y2` are the two control points of a cubic Bézier, normalised
 
 ---
 
+### 3.7 Comments
+
+Lines beginning with `#` are treated as **line comments** and are ignored by the parser. A `#` may also appear **inline** after valid content — everything from `#` to the end of the line is discarded.
+
+```
+# This is a full-line comment
+
+rpm: 120        # tempo in revolutions per minute
+base: 20mm      # minimum cam radius
+scale: shared   # shared Y axis across all voices
+```
+
+```
+# Define custom curves
+@gentle = B(0.2, 0.0, 0.8, 1.0)
+
+---
+
+# Voice definitions
+A: [S3@2 D S0]  # main cam — weighted slow rise
+B: A@0.5        # phase offset copy — half revolution
+```
+
+> **Note:** The `#` prefix used in compact physical label shorthand (§5, e.g. `#S4-3030`) is a separate human-readable convention and is **not** parseable syntax. The `#` comment syntax described here applies only within parseable score documents.
+
+---
+
 ## 4. Multi-Cam Notation (Score Format)
 
 When multiple cams share a shaft, their timing relationships matter. Stroke Signatures can be written as a score.
@@ -164,9 +191,38 @@ When multiple cams share a shaft, their timing relationships matter. Stroke Sign
 Assign a label to each cam:
 
 ```
-A: [S3 D S0 D]
-B: [D S3 D S0]
+cam: [S3 D S0 D]
+follower: [D S3 D S0]
 ```
+
+#### Voice Name Rules
+
+Voice names are **IDENTIFIER tokens** with the pattern `[a-zA-Z_][a-zA-Z0-9_]*` — they begin with a letter or underscore, and may continue with letters, digits, or underscores.
+
+A token becomes a `PRIMITIVE` **only** when **all three** of these conditions hold:
+1. The source character is **uppercase** (i.e. the literal character in the file is uppercase)
+2. It is one of the six primitive letters: `S`, `D`, `L`, `E`, `Q`, `H`
+3. It is **not** immediately followed by another letter
+
+Lowercase letters are **never** tokenised as primitives — `s`, `s1`, `d`, and `q` are all valid IDENTIFIER tokens even though their uppercase forms are primitives. To avoid any risk of primitive tokenisation, voice names should start with a **lowercase letter** or **underscore**.
+
+| Format | Valid? | Reason |
+|--------|--------|--------|
+| `cam` | ✅ | Lowercase multi-char identifier |
+| `cam1` | ✅ | Lowercase identifier with trailing digit |
+| `voice_2` | ✅ | Lowercase identifier with underscore and digit |
+| `a` | ✅ | Single lowercase letter |
+| `a1` | ✅ | Lowercase letter with digit |
+| `s` | ✅ | Lowercase form of primitive letter `S` — always an IDENTIFIER, never a PRIMITIVE |
+| `s1` | ✅ | Lowercase primitive-letter + digit — tokenises as full IDENTIFIER `"s1"` |
+| `S` | ❌ | Uppercase `S` with no following letter — tokenises as PRIMITIVE, not an identifier |
+| `S1` | ❌ | Uppercase `S` followed by digit — tokenises as PRIMITIVE `S` + NUMBER `1`, not an identifier |
+| `D2` | ❌ | Uppercase `D` followed by digit — tokenises as PRIMITIVE `D` + NUMBER `2` |
+| `L1`, `E3`, `Q2`, `H4` | ❌ | All uppercase primitive letters suffer the same tokeniser treatment |
+
+> **Reserved primitive letters (uppercase only):** `S`, `D`, `L`, `E`, `Q`, `H` — these are the six built-in curve type symbols (§2). An **uppercase** primitive letter that is not immediately followed by another letter tokenises as a `PRIMITIVE` token, not part of an identifier. For this reason, uppercase primitive letters cannot safely start a voice name. Their **lowercase** forms (`s`, `d`, `l`, `e`, `q`, `h`) are always identifiers and may freely be used in voice names.
+
+Single uppercase letters that are **not** in the primitive set (e.g. `A`, `B`, `C`) tokenise as identifiers and are accepted as voice names, though lowercase names are recommended for clarity.
 
 ### 4.2 Phase Offset
 
@@ -186,9 +242,11 @@ A full score document includes a metadata header, custom curve definitions, and 
 rpm: 33
 base: 20mm
 max: 8mm
-scale: shared        ← or "independent" — see note below
-shaft: hex           ← shape of the shaft hole (default: circle)
-shaft-diameter: 6    ← diameter in mm (default: 6)
+scale: shared          ← or "independent" — see note below
+shaft: hex             ← shape of the shaft hole (default: circle)
+shaft-diameter: 6      ← diameter in mm (default: 6)
+shaft-origin: 12       ← zero-degree reference corner (default: top-right / 12)
+cross-leg-width: 2     ← arm width for cross shaft only (default: 2, mm)
 
 @gentle = B(0.2, 0.0, 0.8, 1.0)
 @snap   = B(0.9, 0.0, 1.0, 0.4)
@@ -207,6 +265,10 @@ C: [Q2 D0]*4 CW
 **`shaft` field:** Specifies the shape of the shaft hole (crankshaft bore). See §7 for supported shapes. Defaults to `circle`.
 
 **`shaft-diameter` field:** Specifies the shaft hole diameter in mm (circumscribed circle diameter for polygon shapes). Must be positive and less than `2 × base`. Defaults to `6`.
+
+**`shaft-origin` field:** Designates which corner of the shaft polygon (or arm tip for cross) is the zero-degree reference — i.e., the corner/tip that aligns to the cam's 0° position. This eliminates ambiguity when a shaft has multiple identical orientations. See §7.4 for supported values per shape. Defaults to `top-right` for square shafts, `12` for all clock-position shapes including `cross`.
+
+**`cross-leg-width` field:** Specifies the width of each arm of a `cross`-shaped shaft hole, in mm. Only applicable when `shaft: cross`. Defaults to `2`. Must be positive and less than `shaft-diameter`. Ignored for all other shaft shapes.
 
 ---
 
@@ -238,6 +300,7 @@ The hash format is not formally parseable — it is a human-readable label only.
 | Amplitude | Must be ≥ 0. Negative amplitudes are not supported in this version. |
 | Custom curves | Must be defined before use |
 | Weights | Must be positive non-zero numbers |
+| Voice names | Must be IDENTIFIER tokens (`[a-zA-Z_][a-zA-Z0-9_]*`). Uppercase primitive letters (`S`, `D`, `L`, `E`, `Q`, `H`) tokenise as `PRIMITIVE` and cannot start a voice name when uppercased. Lowercase forms (`s`, `d`, etc.) are always identifiers and are valid. Start voice names with a **lowercase letter or underscore** to be safe. |
 
 ---
 
@@ -252,6 +315,7 @@ In the **score header** (the metadata section before `---`), add these optional 
 ```
 shaft: circle          # Shape of the shaft hole (default: circle)
 shaft-diameter: 6      # Diameter in mm (default: 6)
+shaft-origin: top-right  # Zero-degree reference corner (default: top-right)
 ```
 
 ### 7.2 Supported Shapes
@@ -265,8 +329,9 @@ shaft-diameter: 6      # Diameter in mm (default: 6)
 | Hexagon | `hex` | Regular hexagon inscribed in the shaft diameter |
 | Heptagon | `hept` | Regular heptagon inscribed in the shaft diameter |
 | Octagon | `oct` | Regular octagon inscribed in the shaft diameter |
+| Cross | `cross` | Plus-sign / cross shape with four square-cut arms. See §7.6. |
 
-The `shaft-diameter` specifies the **circumscribed circle diameter** — i.e., the diameter of the smallest circle that fully contains the polygon. For a circle shape, it is simply the diameter.
+The `shaft-diameter` specifies the **circumscribed circle diameter** for polygon shapes — i.e., the diameter of the smallest circle that fully contains the polygon. For `circle`, it is simply the diameter. For `cross`, it is the **tip-to-tip span** of each arm (i.e., the total width and height of the cross). See §7.6 for full cross geometry.
 
 ### 7.3 Rules
 
@@ -275,9 +340,49 @@ The `shaft-diameter` specifies the **circumscribed circle diameter** — i.e., t
 | Size constraint | `shaft-diameter` must be positive and less than `2 × base` (the shaft hole must fit inside the base circle) |
 | Shape default | `shaft` defaults to `circle` if not specified |
 | Diameter default | `shaft-diameter` defaults to `6` if not specified |
-| Orientation | Polygon shapes are oriented with one vertex pointing straight up (12 o'clock) |
+| Origin default | `shaft-origin` defaults to `top-right` for square shafts; `12` for all clock-position shapes including `cross` |
+| Origin validation | The `shaft-origin` value must be a legal corner/tip for the specified `shaft` shape (see §7.4) |
+| Origin for circle | `shaft-origin` has no effect when `shaft: circle` and is ignored by the parser |
+| Cross leg width | `cross-leg-width` is required (or defaults to `2`) when `shaft: cross`; ignored for all other shapes |
+| Cross leg width range | `cross-leg-width` must be positive and strictly less than `shaft-diameter` |
+| Cross leg width default | `cross-leg-width` defaults to `2` if not specified |
 
-### 7.4 Examples
+### 7.4 Origin Reference
+
+The `shaft-origin` field designates which corner of the shaft polygon (or arm tip for `cross`) is the **zero-degree reference** — the feature that aligns to the cam's 0° position. This is essential when a shaft has multiple identical orientations (e.g., a square has four indistinguishable faces; a cross has four indistinguishable arms; without `shaft-origin`, the cam could be mounted in any matching orientation and still fit the shaft).
+
+#### Supported Values by Shape
+
+| Shape | Keyword | Valid `shaft-origin` Values |
+|-------|---------|----------------------------|
+| `circle` | Circle | *(not applicable — ignored)* |
+| `square` | Square | `top-right`, `top-left`, `bottom-right`, `bottom-left` |
+| `tri` | Triangle | `12`, `4`, `8` |
+| `pent` | Pentagon | `12`, `2.4`, `4.8`, `7.2`, `9.6` |
+| `hex` | Hexagon | `12`, `2`, `4`, `6`, `8`, `10` |
+| `hept` | Heptagon | `12`, `1.7`, `3.4`, `5.1`, `6.9`, `8.6`, `10.3` |
+| `oct` | Octagon | `12`, `1.5`, `3`, `4.5`, `6`, `7.5`, `9`, `10.5` |
+| `cross` | Cross | `12`, `3`, `6`, `9` |
+
+For **square** shafts, corner names use cardinal descriptors (`top-right`, etc.).
+
+For all **polygon** shafts with N sides, corners are labelled by their approximate **clock-face hour position** (e.g., `12`, `2`, `4`, `6`, `8`, `10` for a hexagon). The `12` position corresponds to straight up. Values are read as strings (not numbers), so `12` is the string `"12"`.
+
+For **cross** shafts, the four arm tips are labelled by clock-face hour position: `12` (top arm), `3` (right arm), `6` (bottom arm), `9` (left arm). The `shaft-origin` designates which arm tip is the zero-degree reference.
+
+For polygon shapes not listed above (custom or future additions), label vertices by clock position in the same convention, evenly spaced around the face.
+
+#### Default
+
+If `shaft-origin` is unspecified:
+- For `square`: defaults to `top-right`
+- For all clock-position shapes (polygon and cross): defaults to `12`
+
+#### Validation
+
+The parser must validate that `shaft-origin` is a legal value for the specified `shaft` shape. An illegal value (e.g., `shaft-origin: top-right` when `shaft: hex`, or `shaft-origin: 2` when `shaft: cross`) is a parse error.
+
+### 7.5 Examples
 
 Simple circle shaft:
 ```
@@ -287,10 +392,30 @@ shaft-diameter: 8
 A: [S3 D S0 D]
 ```
 
-Hexagonal shaft (common for hex key drive):
+Hexagonal shaft (common for hex key drive), origin at 12 o'clock:
 ```
 shaft: hex
 shaft-diameter: 6
+shaft-origin: 12
+---
+A: [S3 D S0 D]
+```
+
+Square shaft with explicit origin corner:
+```
+shaft: square
+shaft-diameter: 6
+shaft-origin: top-right
+---
+A: [S3 D S0 D]
+```
+
+Cross shaft (laser-cut physical build), custom leg width, top arm as origin:
+```
+shaft: cross
+shaft-diameter: 6
+cross-leg-width: 2
+shaft-origin: 12
 ---
 A: [S3 D S0 D]
 ```
@@ -299,7 +424,107 @@ In single-voice shorthand (no score format), the shaft defaults to `circle` at `
 
 ---
 
-## 8. Examples
+### 7.6 Cross Shape Geometry
+
+The `cross` shaft describes a plus-sign shaped bore suitable for laser-cut physical cam builds where rotational registration is required and the stock or cutter produces straight edges.
+
+#### Geometry
+
+A cross shaft is defined by two parameters:
+
+| Parameter | Header Key | Description | Default |
+|-----------|------------|-------------|---------|
+| Tip-to-tip span | `shaft-diameter` | Total width and height of the cross, in mm. Each arm extends `shaft-diameter / 2` from the centre to its tip. | `6` |
+| Arm width | `cross-leg-width` | Width of each arm of the cross, in mm. All four arms are equal width. | `2` |
+
+The cross is constructed as the **union of two rectangles** sharing the same centre:
+- A vertical rectangle: `cross-leg-width` wide × `shaft-diameter` tall
+- A horizontal rectangle: `shaft-diameter` wide × `cross-leg-width` tall
+
+All corners and arm ends are **square-cut** (right-angle corners, no rounding, no arcing). This matches the output of a laser cutter or CNC router with a square-end bit and produces the cleanest keyed fit against a matching cross-section shaft stock.
+
+#### Constraints
+
+- `shaft-diameter` must be positive and less than `2 × base`
+- `cross-leg-width` must be positive and strictly less than `shaft-diameter`
+- `cross-leg-width` defaults to `2` if not specified when `shaft: cross`
+- If `cross-leg-width ≥ shaft-diameter`, the cross degenerates into a square and is a validation error
+
+#### Visual Reference
+
+```
+        ┌───┐
+        │   │   ← cross-leg-width
+    ┌───┼───┼───┐
+    │   │   │   │  ← cross-leg-width
+    └───┼───┼───┘
+        │   │
+        └───┘
+    |←shaft-diam→|
+```
+
+Each arm has length `shaft-diameter / 2` from centre to tip, and width `cross-leg-width`. The origin corner (`shaft-origin`) is the tip of the arm at the designated clock position.
+
+---
+
+## 8. Kerf Offset
+
+Kerf is the width of material removed by the laser beam during cutting. When a laser cuts through material, it vaporises a stripe equal to the beam diameter, causing the resulting cut to be slightly smaller than the programmed shape. Kerf offset compensates for this material removal.
+
+### 8.1 The Rule of Internal and External Cuts
+
+The direction of kerf compensation depends on whether a cut is **internal** or **external**:
+
+| Cut Type | Description | Kerf Action | Effect |
+|----------|-------------|-------------|--------|
+| **Internal cuts** | Cuts that remove material from within a larger piece (e.g., shaft holes, holes in the cam body) | **Subtract** kerf offset | The hole shrinks inward; compensate by cutting slightly larger |
+| **External cuts** | Cuts that define the outer edge of a piece (e.g., cam outline, the outer perimeter) | **Add** kerf offset | The piece shrinks inward; compensate by cutting slightly larger |
+
+> **Example:** If `kerfOffset: 0.2` and a shaft hole is programmed at 6mm diameter, the actual cut removes 0.2mm on each side, yielding approximately 5.6mm. To achieve a true 6mm hole, program it at 6.4mm (6 + 0.2 + 0.2).
+
+### 8.2 Syntax
+
+In the **score header**, add the `kerfOffset` property:
+
+```
+kerfOffset: 0.2
+```
+
+The value is a positive number in the same unit system as the score (typically millimetres).
+
+### 8.3 Interface
+
+```
+kerfOffset: number
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `kerfOffset` | `number` | The width of material removed by the laser beam, in the score's unit system. Must be non-negative. Defaults to `0` (no compensation). |
+
+### 8.4 Interaction with Shaft Hole
+
+The shaft hole is an **internal cut** — it removes material from the cam blank. Therefore, the shaft hole geometry is **expanded outward** by `kerfOffset` on all sides during rendering. For a circular shaft, the diameter is increased by `2 × kerfOffset`. For polygon shafts, each vertex is pushed outward along its radial direction by `kerfOffset`.
+
+### 8.5 Interaction with Cam Outline
+
+The cam outline is an **external cut** — it defines the outer edge of the finished cam. Therefore, the outer profile is **expanded outward** by `kerfOffset` during rendering to compensate for the inward material removal.
+
+### 8.6 Protractor Marks
+
+Protractor marks engraved on the face of the cam must be **larger than the kerf offset** to remain visible after cutting. If a mark's line width is less than or equal to `kerfOffset`, the laser will remove the entire mark during cutting. Implementations should ensure protractor mark geometry exceeds `kerfOffset` in at least one dimension.
+
+### 8.7 Text and Engraving
+
+Text or fine detail smaller than `kerfOffset` will not engrave properly — the laser will remove the entire feature rather than leave a visible mark. Minimum text stroke width and feature size should exceed `kerfOffset`. There is no specific minimum text size defined in this specification, but any feature smaller than the kerf value will be lost.
+
+### 8.8 Default
+
+If `kerfOffset` is unspecified, it defaults to `0` (no kerf compensation applied).
+
+---
+
+## 9. Examples
 
 ### Simple four-beat rise and fall
 ```
@@ -333,7 +558,7 @@ B: A@0.5
 
 ---
 
-## 9. Notation Cheat Sheet
+## 10. Notation Cheat Sheet
 
 ```
 [S3 D L0 D]          Basic sequence — 4 equal segments

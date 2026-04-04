@@ -189,7 +189,7 @@ export function tokenize(input: string): { tokens: Token[]; diagnostics: Diagnos
       // is NOT a letter, emit it as a single PRIMITIVE token.
       // This ensures "S3" tokenizes as PRIMITIVE "S" + NUMBER "3",
       // while "scale" tokenizes as IDENTIFIER "scale".
-      if (PRIMITIVES.has(upper) && !isAlpha(peekAt(1))) {
+      if (ch === upper && PRIMITIVES.has(upper) && !isAlpha(peekAt(1))) {
         advance();
         tokens.push({ type: TokenType.PRIMITIVE, value: upper, pos: p });
         continue;
@@ -206,6 +206,14 @@ export function tokenize(input: string): { tokens: Token[]; diagnostics: Diagnos
       } else {
         tokens.push({ type: TokenType.IDENTIFIER, value: word, pos: p });
       }
+      continue;
+    }
+
+    // Hyphen: used in header keys/values (e.g. shaft-origin, top-right); emit silently as UNKNOWN
+    if (ch === '-') {
+      const p = pos();
+      advance();
+      tokens.push({ type: TokenType.UNKNOWN, value: '-', pos: p });
       continue;
     }
 

@@ -129,3 +129,29 @@ function isMetadataLine(line: string): boolean {
   if (/^[A-Za-z_]\w*@/.test(val)) return false;
   return true;
 }
+
+/**
+ * Remove a metadata key from the score source text.
+ * Returns the source with that metadata line removed.
+ */
+export function removeMetadata(source: string, key: string): string {
+  const lines = source.split('\n');
+  const separatorIndex = lines.findIndex((l) => l.trim() === '---');
+
+  if (separatorIndex >= 0) {
+    // Score format - look in header section only
+    const regex = metadataLineRegex(key);
+    const newLines = lines.filter((line, i) => {
+      // Keep all lines except matching metadata lines in the header
+      if (i < separatorIndex && regex.test(line)) {
+        return false;
+      }
+      return true;
+    });
+    return newLines.join('\n');
+  }
+
+  // No separator - single voice mode, remove from entire source
+  const regex = metadataLineRegex(key);
+  return lines.filter((line) => !regex.test(line)).join('\n');
+}

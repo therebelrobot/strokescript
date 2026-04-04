@@ -129,7 +129,7 @@ class SparkgraphWidget extends WidgetType {
       }
       const storeState = useEditorStore.getState();
       const camData = generateCamShape(waveformData, 10, maxAmp || 1);
-      drawCamSparkgraph(cCtx, camData, CAM_SIZE, nowAngle, storeState.shaftShape, storeState.shaftDiameter);
+      drawCamSparkgraph(cCtx, camData, CAM_SIZE, nowAngle, storeState.shaftShape, storeState.shaftDiameter, 2, false, 'hundredths');
     }
   }
 
@@ -246,7 +246,7 @@ function redrawAllSparkgraphs(view: EditorView): void {
       if (p.amplitude > maxAmp) maxAmp = p.amplitude;
     }
     const camData = generateCamShape(waveformData, 10, maxAmp || 1);
-    drawCamSparkgraph(ctx, camData, CAM_SIZE, nowAngle, state.shaftShape, state.shaftDiameter);
+    drawCamSparkgraph(ctx, camData, CAM_SIZE, nowAngle, state.shaftShape, state.shaftDiameter, 2, false, 'hundredths');
   }
 }
 
