@@ -12,8 +12,7 @@
 import * as opentype from 'opentype.js';
 
 // Font from jsDelivr CDN - WOFF format (opentype.js supports TTF, OTF, and WOFF but not WOFF2)
-// DejaVu Mono from @fontsource package (verified package on npm/jsdelivr)
-const FONT_URL = 'https://cdn.jsdelivr.net/npm/@fontsource/dejavu-mono@5.2.5/files/dejavu-mono-latin-400-normal.woff';
+const FONT_URL = 'https://cdn.jsdelivr.net/npm/@fontsource/roboto-condensed@5.2.8/files/roboto-condensed-latin-ext-400-normal.woff';
 
 // Cache for the loaded font
 let cachedFont: opentype.Font | null = null;
