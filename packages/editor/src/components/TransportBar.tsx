@@ -1,6 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useEditorStore } from '../store';
 
+// DEBUG: Mobile layout diagnostics (set to false in production)
+const DEBUG_MOBILE = false;
+function debugMobile(...args: unknown[]) {
+  if (DEBUG_MOBILE) {
+    console.log('[TransportBar]', ...args);
+  }
+}
+
 export function TransportBar() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const currentAngle = useEditorStore((s) => s.currentAngle);
@@ -13,6 +21,39 @@ export function TransportBar() {
 
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+
+  // DEBUG: Mobile viewport diagnostics
+  useEffect(() => {
+    const logViewportInfo = () => {
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const docH = document.documentElement.scrollHeight;
+      const appEl = document.querySelector('.app');
+      const transportEl = document.querySelector('.transport-bar');
+      const appRect = appEl?.getBoundingClientRect();
+      const transportRect = transportEl?.getBoundingClientRect();
+      
+      debugMobile('📱 Viewport:', { vh, vw, docH });
+      debugMobile('📦 App rect:', appRect);
+      debugMobile('🎵 Transport rect:', transportRect);
+      debugMobile('🎵 Transport visible:', transportRect ? `top=${transportRect.top}, bottom=${transportRect.bottom}, inView=${transportRect.top < vh && transportRect.bottom > 0}` : 'null');
+      
+      // Check if any flex children would cause overflow
+      const btn = document.querySelector('.transport-bar__btn');
+      const angle = document.querySelector('.transport-bar__angle');
+      const rpm = document.querySelector('.transport-bar__rpm');
+      debugMobile('🔍 Children overflow check:', {
+        btn: btn?.getBoundingClientRect(),
+        angle: angle?.getBoundingClientRect(),
+        rpm: rpm?.getBoundingClientRect(),
+        totalWidth: (btn?.getBoundingClientRect().width || 0) + (angle?.getBoundingClientRect().width || 0) + (rpm?.getBoundingClientRect().width || 0) + 200 // gap
+      });
+    };
+    
+    logViewportInfo();
+    window.addEventListener('resize', logViewportInfo);
+    return () => window.removeEventListener('resize', logViewportInfo);
+  }, []);
 
   const animate = useCallback(
     (time: number) => {

@@ -1,3 +1,11 @@
+// DEBUG: Click target diagnostics (set to false in production)
+const DEBUG_CLICKS = false;
+function debugClick(...args: unknown[]) {
+  if (DEBUG_CLICKS) {
+    console.log('[SparkgraphWidget]', ...args);
+  }
+}
+
 /**
  * CodeMirror 6 plugin that inserts inline sparkgraph widgets (waveform + cam)
  * at the end of each voice line inside the editor.
@@ -55,10 +63,22 @@ class SparkgraphWidget extends WidgetType {
     container.style.marginLeft = '12px';
     container.style.verticalAlign = 'middle';
     container.style.cursor = 'pointer';
+    // Increase touch target for mobile (44px minimum recommended)
+    container.style.padding = '8px 6px';
+    container.style.marginTop = '-6px';
+    container.style.marginBottom = '-6px';
+    container.style.borderRadius = '4px';
 
     // Click handler: toggle DetailPanel for this voice
     const voiceName = this.voiceName;
     container.addEventListener('click', (e) => {
+      debugClick('📍 Click event:', {
+        target: e.target,
+        currentTarget: e.currentTarget,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        voiceName: this.voiceName,
+      });
       e.preventDefault();
       e.stopPropagation();
       const store = useEditorStore.getState();
@@ -68,6 +88,18 @@ class SparkgraphWidget extends WidgetType {
         store.setExpandedVoice(voiceName);
       }
     });
+
+    // Debug: track touch events for mobile
+    container.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      debugClick('👆 Touch start:', {
+        target: e.target,
+        voiceName: this.voiceName,
+        touchX: touch?.clientX,
+        touchY: touch?.clientY,
+        containerRect: container.getBoundingClientRect(),
+      });
+    }, { passive: true });
 
     // Waveform canvas
     const waveCanvas = document.createElement('canvas');
@@ -134,7 +166,9 @@ class SparkgraphWidget extends WidgetType {
   }
 
   ignoreEvent(): boolean {
-    return false;
+    // Return true to prevent CodeMirror from handling events on this widget
+    // This ensures clicks go to our handler without CM moving cursor
+    return true;
   }
 }
 
@@ -155,6 +189,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const voices = parseResult?.score?.voices ?? [];
 
   if (voices.length === 0) {
+    debugClick('📭 No voices to decorate');
     return Decoration.none;
   }
 
@@ -174,6 +209,7 @@ function buildDecorations(view: EditorView): DecorationSet {
       const voiceName = match[1];
       const voice = voiceMap.get(voiceName);
       if (voice) {
+        debugClick(`🏷️ Found voice "${voiceName}" at line ${i}, pos ${line.from}-${line.to}, widget at ${line.to}`);
         decorations.push({
           pos: line.to,
           widget: new SparkgraphWidget(voice, voiceName),
@@ -181,6 +217,8 @@ function buildDecorations(view: EditorView): DecorationSet {
       }
     }
   }
+
+  debugClick('📊 Total decorations built:', decorations.length);
 
   // Sort by position (should already be sorted) and create decoration set
   decorations.sort((a, b) => a.pos - b.pos);

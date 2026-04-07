@@ -28,7 +28,9 @@ body {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile browsers */
   width: 100vw;
+  overflow: hidden;
 }
 
 .app__body {
@@ -396,6 +398,56 @@ body {
   min-width: 60px;
   text-align: right;
   flex-shrink: 0;
+}
+
+/* ── Mobile Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .app {
+    min-height: 100dvh;
+  }
+  
+  .app__header {
+    padding: 6px 12px;
+  }
+  
+  .app__title {
+    font-size: 14px;
+  }
+  
+  /* Transport bar adjustments for small screens */
+  .transport-bar {
+    padding: 6px 8px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .transport-bar__btn {
+    min-width: 56px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .transport-bar__angle {
+    font-size: 12px;
+    min-width: 50px;
+    /* Hide angle on very small screens to save space */
+  }
+  
+  .transport-bar__rpm {
+    font-size: 11px;
+    gap: 4px;
+  }
+  
+  .transport-bar__input {
+    width: 50px;
+    font-size: 12px;
+  }
+  
+  /* Sidebar hidden on mobile by default */
+  .sidebar {
+    display: none;
+  }
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────── */
